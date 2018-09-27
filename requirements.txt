@@ -1,6 +1,5 @@
 netifaces
 flask
-gcc
 flask-restplus
 enum34
 pingparsing
