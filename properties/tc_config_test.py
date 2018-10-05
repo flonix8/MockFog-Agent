@@ -74,33 +74,5 @@ class Test_Tc_config(unittest.TestCase):
         }
         self.test_can_upd_rule()
 
-    def test_adds_new_rule_if_update_with_new_dst_net(self):
-        self.test_can_start()
-        self.tc.update({
-            'in_rate':'100kbps',
-            'rules': [
-                {
-                    'dst_net':'2.2.4.5/24',
-                    'delay':'24ms',
-                    'dispersion':'10ms'
-                }
-            ]
-        })
-        self.assertEqual(len(self.tc._rules), 3)
-
-    def test_updates_rule_if_update_with_known_dst_net(self):
-        self.test_can_start()
-        self.tc.update({
-            'in_rate':'100kbps',
-            'rules':[
-                {
-                    'dst_net':'13.123.24.123/16',
-                    'delay':'24ms',
-                    'dispersion':'10ms'
-                }
-            ]
-        })
-        self.assertEqual(len(self.tc._rules), 2)
-
 if __name__ == '__main__':
     unittest.main()
