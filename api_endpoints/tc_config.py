@@ -91,9 +91,3 @@ class Tc_config(Resource):
             }
             return res, 200
         api.abort(500, "TC has not been stopped")
-
-
-
-
-
-
