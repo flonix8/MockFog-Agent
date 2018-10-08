@@ -14,10 +14,10 @@ class Tc_config(Property):
         self._out_rate = '1gbps'
         self._in_rate = '1gbps'
         self._running = False
-    
+
     @property
     def parameter(self):
-        if self._running: 
+        if self._running:
             return {
                 'out_rate':self._out_rate,
                 'in_rate':self._in_rate,
@@ -54,7 +54,7 @@ class Tc_config(Property):
         out, err = pipe.communicate()
         self._running = False
         return True
-    
+
     def update(self, parameter):
         p = parameter
         if 'in_rate' in p:
@@ -62,15 +62,16 @@ class Tc_config(Property):
         if 'out_rate' in p:
             self._out_rate = p['out_rate']
         rules = p['rules']
-        
+
         shall_delete = False
         if len(rules)!=len(self._rules):
             shall_delete = True
+            self._rules = rules
         else:
             # update self._rules and check if dst_nets match
             for rule in rules:
                 id = self._get_rule_by_dst_net(rule['dst_net'])
-                if id>=0: 
+                if id>=0:
                     self._rules[id] = rule
                 else:
                     shall_delete = True
@@ -126,7 +127,7 @@ class Tc_config(Property):
         return pipe.communicate()
 
     def _set_inc(self):
-        cmd = ( 
+        cmd = (
             f"ip link add uplink type ifb\n"
             f"ip link set dev uplink up\n"
             f"tc qdisc add dev {self._iface} ingress\n"
@@ -140,7 +141,7 @@ class Tc_config(Property):
         )
         pipe = Popen(cmd, shell=True, stderr=sc.PIPE, stdout=sc.PIPE)
         return pipe.communicate()
-    
+
     def _set_out(self):
         cmd = (
             f"tc qdisc add dev {self._iface} root handle 1: htb\n"
@@ -156,7 +157,7 @@ class Tc_config(Property):
             out_rate = rule['out_rate']
         else: out_rate = self._out_rate
         cmd = (
-            f"tc class add dev {self._iface} parent 1:1 classid 1:1{id}" 
+            f"tc class add dev {self._iface} parent 1:1 classid 1:1{id}"
             f"  htb rate {out_rate} ceil {out_rate} \n"
             f"tc qdisc add dev {self._iface} parent 1:1{id} handle 2{id}:"
         ) + self._netem_qdisc(rule) + '\n' + (
@@ -190,5 +191,3 @@ class Tc_config(Property):
             n.append('reordering')
             n.append(rule['reordering'])
         return ' '.join(n)
-
-
