@@ -44,8 +44,7 @@ class Tc_config(Resource):
         config = request.json
         FogAgent = app.config['FogAgent']
         tc = FogAgent.get_property('TC')
-        FogAgent.start_property(tc, config)
-        if FogAgent.property_running(tc):
+        if FogAgent.start_property(tc, config):
             res = {
                 'msg': "TC was successfully started"
             }
@@ -64,11 +63,11 @@ class Tc_config(Resource):
         config = request.json
         FogAgent = app.config['FogAgent']
         tc = FogAgent.get_property('TC')
-        if not FogAgent.property_running(tc):
-            res = {
-                'msg': 'Update not possible. Please start TC first.'
-            }
-            return res, 201
+#        if not FogAgent.property_running(tc):
+#            res = {
+#                'msg': 'Update not possible. Please start TC first.'
+#            }
+#            return res, 201
         if FogAgent.update_property(tc, config):
             res = {
                 'msg': "TC was successfully updated"

@@ -30,8 +30,16 @@ class Tc_config(Property):
                 'rules':[]
             }
 
+    def status(self):
+        return self._running
+
     def start(self, parameter):
         p = parameter
+        if self._running:
+            self.stop()
+        else:
+            self._init_firewall()
+
         self._rules = p['rules']
         self._in_rate = p['in_rate']
         self._out_rate = p['out_rate']
@@ -52,79 +60,49 @@ class Tc_config(Property):
         )
         pipe = Popen(cmd, shell=True, stderr=sc.DEVNULL)
         out, err = pipe.communicate()
+
+        self._init_firewall()
+
         self._running = False
         return True
 
+    def _init_firewall(self):
+        cmd = "iptables -F"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+        cmd = "iptables -P OUTPUT ACCEPT"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+        cmd = "iptables -P FORWARD DROP"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+        cmd = "iptables -P INPUT ACCEPT"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+
+        cmd = f"iptables -A OUTPUT -o !{self._iface} -j ACCEPT"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+
+        cmd = f"iptables -A INPUT -i !{self._iface} -j ACCEPT"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+
+        cmd = f"iptables -A OUTPUT -d 10.0.1.0/24 -j ACCEPT"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+
+        cmd = f"iptables -A INPUT -s 10.0.1.0/24 -j ACCEPT"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+
+        cmd = f"iptables -A INPUT -i lo -j ACCEPT"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+
+        cmd = f"iptables -A OUTPUT -o lo -j ACCEPT"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+
+        cmd = f"iptables -A INPUT -p tcp -m tcp --dport 22 -j ACCEPT"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+
+        cmd = f"iptables -A OUTPUT -p tcp --sport 22 -m state --state ESTABLISHED -j ACCEPT"
+        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+
+
     def update(self, parameter):
-        p = parameter
-        if 'in_rate' in p:
-            self._in_rate = p['in_rate']
-        if 'out_rate' in p:
-            self._out_rate = p['out_rate']
-        rules = p['rules']
-
-        shall_delete = False
-        if len(rules)!=len(self._rules):
-            shall_delete = True
-            self._rules = rules
-        else:
-            # update self._rules and check if dst_nets match
-            for rule in rules:
-                id = self._get_rule_by_dst_net(rule['dst_net'])
-                if id>=0:
-                    self._rules[id] = rule
-                else:
-                    shall_delete = True
-                    self._rules = rules
-                    break
-
-        if shall_delete:
-            self.stop()
-            self._set_inc()
-            self._set_out()
-            for id in range(len(self._rules)):
-                self._set_rule(id)
-            self._running = True
-        else: #can update every rule
-            self._upd_inc()
-            self._upd_out()
-            for id in range(len(self._rules)):
-                self._upd_rule(id)
-
-        return True
-
-    def status(self):
-        return self._running
-
-    def _get_rule_by_dst_net(self, dst_net):
-        for id,rule in enumerate(self._rules):
-            if rule['dst_net']==dst_net:
-                return id
-        return -1
-
-    def _upd_inc(self):
-        cmd = (
-            f"tc class change dev uplink parent 1: classid 1:1"
-            f"  htb rate {self._in_rate} ceil {self._in_rate}"
-        )
-        pipe = Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE)
-        return pipe.communicate()
-
-    def _upd_out(self):
-        cmd = (
-            f"tc class change dev {self._iface} parent 1: classid 1:1"
-            f"  htb rate {self._out_rate} ceil {self._out_rate}"
-        )
-        pipe = Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE)
-        return pipe.communicate()
-
-    def _upd_rule(self, id):
-        rule = self._rules[id]
-        cmd = (
-            f"tc qdisc replace dev {self._iface} parent 1:1{id}"
-        ) + self._netem_qdisc(rule)
-        pipe = Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE)
-        return pipe.communicate()
+        return self.start(parameter)
 
     def _set_inc(self):
         cmd = (
@@ -166,28 +144,44 @@ class Tc_config(Property):
             f"  flowid 1:1{id}"
         )
         pipe = Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE)
-        return pipe.communicate()
+        out1, err1 = pipe.communicate()
+
+        cmd = f"iptables -A OUTPUT -d {rule['dst_net']} -j ACCEPT"
+        pipe = sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE)
+        out2, err2 = pipe.communicate()
+
+        cmd = f"iptables -A INPUT -s {rule['dst_net']} -j ACCEPT"
+        pipe = sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE)
+        out3, err3 = pipe.communicate()
+
+        return out1+out2+out3, err1+err2+err3
 
     def _netem_qdisc(self, rule):
         n = []
         n.append(' netem')
         # add "delay Xns Yns"
-        if 'delay' in rule:
+        if 'delay' in rule and float(self._get_digits(rule['delay']))>0:
             n.append('delay')
             n.append(rule['delay'])
-            if 'dispersion' in rule:
+            if 'dispersion' in rule and float(self._get_digits(rule['dispersion']))>0:
                 n.append(rule['dispersion'])
                 n.append("distribution normal")
-        if 'loss' in rule:
-            n.append('loss')
-            n.append(rule['loss'])
-        if 'corrupt' in rule:
-            n.append('corrupt')
-            n.append(rule['corrupt'])
-        if 'duplicate' in rule:
-            n.append('duplicate')
-            n.append(rule['duplicate'])
-        if 'reordering' in rule:
-            n.append('reordering')
-            n.append(rule['reordering'])
-        return ' '.join(n)
+
+        self._append_prob(n, 'loss', rule['loss'])
+        self._append_prob(n, 'corrupt', rule['corrupt'])
+        self._append_prob(n, 'duplicate', rule['duplicate'])
+        self._append_prob(n, 'reorder', rule['reorder'])
+
+        if len(n)>1:
+            return ' '.join(n)
+        else:
+            return ' '
+
+    def _append_prob(self, n, key, val):
+        str_val = str(val).replace('%','',1).strip()
+        if str_val.replace('.','',1).isdigit() and float(str_val) > 0:
+            n.append(key)
+            n.append(str_val)
+
+    def _get_digits(self, value):
+        return ''.join([i for i in str(value) if i.isdigit()])
