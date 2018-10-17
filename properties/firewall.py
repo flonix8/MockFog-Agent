@@ -16,15 +16,18 @@ class Firewall(object):
         return {'active': self.running}
 
     def start(self, parameter):
+        """
         if not ('active' in parameter):
             return False
         if parameter['active']:
             self._set_rule()
             self.running = True
             self._active = True
+        """
         return True
-        
+
     def update(self, parameter):
+        """
         if not ('active' in parameter):
             return False
         if parameter['active'] and not self.running:
@@ -33,6 +36,7 @@ class Firewall(object):
         if not parameter['active'] and self.running:
             self._del_rule()
             self._active = False
+        """
         return True
 
     def stop(self):
@@ -45,6 +49,7 @@ class Firewall(object):
         return self.running
 
     def _set_rule(self, ip="0.0.0.0/0"):
+        """
         cmd = f"iptables -A OUTPUT -o {self._iface} -s {ip} -j DROP"
         pipe = sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE)
         out, err = pipe.communicate()
@@ -52,8 +57,11 @@ class Firewall(object):
         pipe = sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE)
         out1, err1 = pipe.communicate()
         return out+out1, err+err1
+        """
+        return "", ""
 
     def _del_rule(self, ip="0.0.0.0/0"):
+        """
         cmd = f"iptables -D OUTPUT -o {self._iface} -s {ip} -j DROP"
         pipe = sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE)
         out, err = pipe.communicate()
@@ -61,6 +69,8 @@ class Firewall(object):
         pipe = sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE)
         out1, err1 = pipe.communicate()
         return out+out1, err+err1
+        """
+        return "", ""
 
     def __str__(self):
         return self.name

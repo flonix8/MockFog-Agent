@@ -37,17 +37,21 @@ class Tc_config(Property):
         p = parameter
         if self._running:
             self.stop()
-        else:
-            self._init_firewall()
+
+        self._init_firewall()
 
         self._rules = p['rules']
-        self._in_rate = p['in_rate']
-        self._out_rate = p['out_rate']
+        if 'in_rate' in p:
+            self._in_rate = p['in_rate']
+        if 'out_rate' in p:
+            self._out_rate = p['out_rate']
 
         self._set_inc()
         self._set_out()
+
         for id in range(len(self._rules)):
             self._set_rule(id)
+
         self._running = True
         return True
 
@@ -61,19 +65,17 @@ class Tc_config(Property):
         pipe = Popen(cmd, shell=True, stderr=sc.DEVNULL)
         out, err = pipe.communicate()
 
-        self._init_firewall()
-
         self._running = False
         return True
 
     def _init_firewall(self):
         cmd = "iptables -F"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
-        cmd = "iptables -P OUTPUT ACCEPT"
+        cmd = "iptables -P OUTPUT DROP"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
         cmd = "iptables -P FORWARD DROP"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
-        cmd = "iptables -P INPUT ACCEPT"
+        cmd = "iptables -P INPUT DROP"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
 
         cmd = f"iptables -A OUTPUT -o !{self._iface} -j ACCEPT"
