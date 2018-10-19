@@ -14,6 +14,20 @@ class Tc_config(Property):
         self._out_rate = '1gbps'
         self._in_rate = '1gbps'
         self._running = False
+        cmd = "netstat -r -n | grep '^0\.0\.0\.0.*"+iface+"$' | awk '{printf $2}'"
+        pipe = Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE)
+        out1, err1 = pipe.communicate()
+        self._ifacegw = str(out1).strip("b'").strip("'")
+        cmd = "netstat -r -n | grep '^.*10\.0\.1\.1.*$' | awk '{printf $8}'"
+        pipe = Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE)
+        out2, err1 = pipe.communicate()
+        self._iface_nm = str(out2).strip("b'").strip("'")
+
+        # quick hack to facilitate routing between different networks
+        cmd = "ip route add 10.0.1.0/24 dev "+self._iface_nm
+        Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+        cmd = "ip route add 10.0.0.0/16 dev "+iface
+        Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE).communicate()
 
     @property
     def parameter(self):
@@ -71,20 +85,16 @@ class Tc_config(Property):
     def _init_firewall(self):
         cmd = "iptables -F"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
-        cmd = "iptables -P OUTPUT DROP"
-        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+
         cmd = "iptables -P FORWARD DROP"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
         cmd = "iptables -P INPUT DROP"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
 
-        cmd = f"iptables -A OUTPUT -o !{self._iface} -j ACCEPT"
+        cmd = f"iptables -A INPUT -i {self._iface_nm} -j ACCEPT"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
 
-        cmd = f"iptables -A INPUT -i !{self._iface} -j ACCEPT"
-        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
-
-        cmd = f"iptables -A OUTPUT -d 10.0.1.0/24 -j ACCEPT"
+        cmd = f"iptables -A INPUT -s {self._ifacegw} -j ACCEPT"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
 
         cmd = f"iptables -A INPUT -s 10.0.1.0/24 -j ACCEPT"
@@ -93,13 +103,7 @@ class Tc_config(Property):
         cmd = f"iptables -A INPUT -i lo -j ACCEPT"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
 
-        cmd = f"iptables -A OUTPUT -o lo -j ACCEPT"
-        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
-
         cmd = f"iptables -A INPUT -p tcp -m tcp --dport 22 -j ACCEPT"
-        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
-
-        cmd = f"iptables -A OUTPUT -p tcp --sport 22 -m state --state ESTABLISHED -j ACCEPT"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
 
 
@@ -148,15 +152,11 @@ class Tc_config(Property):
         pipe = Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE)
         out1, err1 = pipe.communicate()
 
-        cmd = f"iptables -A OUTPUT -d {rule['dst_net']} -j ACCEPT"
+        cmd = f"iptables -A INPUT -s {rule['dst_net']} -j ACCEPT"
         pipe = sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE)
         out2, err2 = pipe.communicate()
 
-        cmd = f"iptables -A INPUT -s {rule['dst_net']} -j ACCEPT"
-        pipe = sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE)
-        out3, err3 = pipe.communicate()
-
-        return out1+out2+out3, err1+err2+err3
+        return out1+out2, err1+err2
 
     def _netem_qdisc(self, rule):
         n = []
