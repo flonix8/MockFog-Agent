@@ -43,8 +43,7 @@ class FogAgent(object):
         return running
 
     def start_property(self, property, parameter):
-        property.start(parameter)
-        if self.property_running(property) == True:
+        if property.start(parameter):
             logging.info("Property %s started " % (property.name))
             return True
         else:
@@ -65,9 +64,9 @@ class FogAgent(object):
             return False
 
     def update_property(self, property, parameter):
-        if not self.property_running(property):
-            logging.info("Property %s is not running" % (property.name))
-            return False
+#        if not self.property_running(property):
+#            logging.info("Property %s is not running" % (property.name))
+#            return False
 
         if property.update(parameter):
             logging.info("Updated property %s" % (property.name) )
@@ -168,7 +167,7 @@ def fog_agent_main(args):
         ifaces = netifaces.interfaces()
         iface_candidates = []
         for face in ifaces:
-            if (face != args.iface) and (face != 'lo'):
+            if (face != args.iface) and (face != 'lo') and (''.join([i for i in face if not i.isdigit()])==''.join([i for i in args.iface if not i.isdigit()])):
                 iface_candidates.append(face)
 
         if len(iface_candidates)==1:

@@ -26,9 +26,10 @@ class Tc_config(Resource):
                         500: 'Firewall was not started'})
     @ns.expect(firewall)
     def post(self):
+        return "nothing was done", 200
         """
         Start Firewall
-        """
+        
         config = request.json
         FogAgent = app.config['FogAgent']
         fw = FogAgent.get_property('Firewall')
@@ -39,15 +40,17 @@ class Tc_config(Resource):
             }
             return res, 200
         api.abort(500, "Firewall was not started")
+        """
 
     @api.doc(responses={200: 'Firewall configuration updated',
                         400: 'Update not possible. Please start Firewall first.',
                         500: 'Firewall update was not successfull'})
     @ns.expect(firewall)
     def put(self):
+        return "nothing was done", 200
         """
         Update Firewall rule
-        """
+        
         config = request.json
         FogAgent = app.config['FogAgent']
         fw = FogAgent.get_property('Firewall')
@@ -62,13 +65,15 @@ class Tc_config(Resource):
             }
             return res, 200
         api.abort(500, "Firewall update failed")
+        """
 
     @api.doc(responses={200: 'Firewall stopped',
                         500: 'Firewall has not been stopped'})
     def delete(self):
+        return "nothing was done", 200
         """
         Shutdown Firewall
-        """
+        
         FogAgent = app.config['FogAgent']
         fw = FogAgent.get_property('Firewall')
         FogAgent.stop_property(fw)
@@ -78,6 +83,7 @@ class Tc_config(Resource):
             }
             return res, 200
         api.abort(500, "TC has not been stopped")
+        """
 
 
 
