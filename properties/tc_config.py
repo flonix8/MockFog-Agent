@@ -88,8 +88,10 @@ class Tc_config(Property):
 
         cmd = "iptables -P FORWARD DROP"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
-        cmd = "iptables -P INPUT DROP"
-        sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+        # ToDo: removing this kills the ability to disable connections
+        # However, otherwise communication from the outside does not work
+        # cmd = "iptables -P INPUT DROP"
+        # sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
 
         cmd = f"iptables -A INPUT -i {self._iface_nm} -j ACCEPT"
         sc.Popen(cmd.split(), stdout=sc.PIPE, stderr=sc.PIPE).communicate()
