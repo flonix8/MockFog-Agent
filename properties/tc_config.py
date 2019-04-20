@@ -23,8 +23,11 @@ class Tc_config(Property):
         out2, err1 = pipe.communicate()
         self._iface_nm = str(out2).strip("b'").strip("'")
 
-        # quick hack to facilitate routing between different networks
+        # quick hack to facilitate routing between different networks - these routes are non-persistent!
         cmd = "ip route add 10.0.1.0/24 dev "+self._iface_nm
+        Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE).communicate()
+        # Enable name resolution (default Amazon VPC nameserver is always on NET_BASE_ADDR+2, i.e. 10.0.0.2)
+        cmd = "ip route add 10.0.0.0/24 dev "+self._iface_nm
         Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE).communicate()
         cmd = "ip route add 10.0.0.0/16 dev "+iface
         Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE).communicate()
