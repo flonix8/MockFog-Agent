@@ -1,6 +1,7 @@
 from properties.property import Property
 from subprocess import Popen
 import subprocess as sc
+import logging
 
 class Tc_config(Property):
 
@@ -51,6 +52,7 @@ class Tc_config(Property):
         return self._running
 
     def start(self, parameter):
+        logging.info(f'Updating/starting tc with parameters: {parameter}')
         p = parameter
         if self._running:
             self.stop()
@@ -153,6 +155,7 @@ class Tc_config(Property):
             f"  match ip dst {rule['dst_net']}"
             f"  flowid 1:1{id}"
         )
+        logging.info(f'Executing tc cmd: {}')
         pipe = Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE)
         out1, err1 = pipe.communicate()
 
