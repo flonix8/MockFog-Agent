@@ -155,7 +155,7 @@ class Tc_config(Property):
             f"  match ip dst {rule['dst_net']}"
             f"  flowid 1:1{id}"
         )
-        logging.info(f'Executing tc cmd: {}')
+        logging.info(f'Executing tc cmd: {cmd}')
         pipe = Popen(cmd, shell=True, stdout=sc.PIPE, stderr=sc.PIPE)
         out1, err1 = pipe.communicate()
 
